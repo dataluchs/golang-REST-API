@@ -1,38 +1,50 @@
 package utils
 
 import (
-	"context"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
-	"time"
+
+	"github.com/gofiber/fiber/v2"
 )
 
-func StartServerWithGracefulShutdown(server *http.Server) {
-	
-	var wait time.Duration
+// starting server with a graceful shutdown.
+func StartServerWithGracefulShutdown(a *fiber.App) {
+	// Create channel for idle connections.
+	idleConnsClosed := make(chan struct{})
 
 	go func() {
-		log.Println("Server is starting ...")
-		if err := server.ListenAndServe(); err != nil {
-			log.Println(err)
+		sigint := make(chan os.Signal, 1)
+		signal.Notify(sigint, os.Interrupt) // Catch OS signals.
+		<-sigint
+
+		// Received an interrupt signal, shutdown.
+		if err := a.Shutdown(); err != nil {
+			// Error from closing listeners, or context timeout:
+			log.Printf("Oops... Server is not shutting down! Reason: %v", err)
 		}
+
+		close(idleConnsClosed)
 	}()
 
-	c := make(chan os.Signal, 1)
+	// Build Fiber connection URL.
+	fiberConnURL, _ := ConnectionURLBuilder("fiber")
 
-	signal.Notify(c, os.Interrupt)
-
-	<- c
-
-	ctx, cancel := context.WithTimeout(context.Background(), wait)
-	defer cancel()
-
-	if err := server.Shutdown(ctx); err != nil {
-		log.Println(err)
+	// Run server.
+	if err := a.Listen(fiberConnURL); err != nil {
+		log.Printf("Oops... Server is not running! Reason: %v", err)
 	}
 
-	log.Println("Server is shutting down ...")
+	<-idleConnsClosed
 }
 
+// start server
+func StartServer(a *fiber.App) {
+	// Build Fiber connection URL.
+	fiberConnURL, _ := ConnectionURLBuilder("server")
+
+	// Run server.
+	if err := a.Listen(fiberConnURL); err != nil {
+		log.Printf("Oops... Server is not running! Reason: %v", err)
+	}
+}

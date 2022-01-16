@@ -1,25 +1,21 @@
 package configs
 
 import (
-	"golang-rest-api/utils"
-	"net/http"
 	"os"
 	"strconv"
 	"time"
 
-	"github.com/gorilla/mux"
+	"github.com/gofiber/fiber/v2"
 )
 
-// ServerConfig func for configuration net/http app.
-func ServerConfig(router *mux.Router) *http.Server {
-	// Define server settings:
-	serverConnURL, _ := utils.ConnectionURLBuilder("server")
+// FiberConfig func for configuration Fiber app.
+// See: https://docs.gofiber.io/api/fiber#config
+func FiberConfig() fiber.Config {
+	// Define server settings.
 	readTimeoutSecondsCount, _ := strconv.Atoi(os.Getenv("SERVER_READ_TIMEOUT"))
 
-	// Return server configuration.
-	return &http.Server{
-		Handler:     router,
-		Addr:        serverConnURL,
+	// Return Fiber configuration.
+	return fiber.Config{
 		ReadTimeout: time.Second * time.Duration(readTimeoutSecondsCount),
 	}
 }
